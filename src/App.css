@@ -1,38 +1,62 @@
-.App {
-  text-align: center;
+.Container {
+  padding: 10px;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.SearchBar{
+  margin-top: 0 ;
+  margin-bottom: 10px ;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.UserTable thead{
+  background-color: lavender;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.UserTable td, .UserTable th{
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.UserTable th{
+  font-weight: 700;
+}
+
+.Selected{
+  background-color: rgb(20, 207, 207);
+}
+
+.PagingBar{
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.ActionButton{
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ActionButton .MuiIconButton-root{
+  padding: 5px !important;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+}
+
+.ButtonGroup{
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 10px;
 }
 
-.App-link {
-  color: #61dafb;
+.FormGroup{
+  margin-bottom: 15px;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.ModalTitle{
+  margin-bottom: 20px;
 }
