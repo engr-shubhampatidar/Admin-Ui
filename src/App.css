@@ -60,3 +60,20 @@
 .ModalTitle{
   margin-bottom: 20px;
 }
+/* 
+body::-webkit-scrollbar {
+  -webkit-appearance: none;
+}
+
+body::-webkit-scrollbar:vertical {
+  width: 8px;
+}
+
+body::-webkit-scrollbar:horizontal {
+  height: 8px;
+}
+
+body::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background-color: rgb(230 230 250);
+} */
