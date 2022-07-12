@@ -30,13 +30,10 @@ function EditModal({ open, user, handleClose, editUser }) {
   const [userToEdit, setUserToEdit] = useState(user);
 
   useEffect(() => {
-    if (user) {
-      setUserToEdit(user);
-    }
     return () => {
       console.log("here");
     };
-  }, [user]);
+  }, []);
 
   // changing name
   const changeName = (name) => {

@@ -1,9 +1,12 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 // MUI
 import {
+  Alert,
+  Backdrop,
   Box,
   Button,
   Checkbox,
+  CircularProgress,
   Pagination,
   Paper,
   Stack,
@@ -15,31 +18,37 @@ import {
   TableRow,
 } from "@mui/material";
 // Importing icons
-// Library for API calls
-import axios from "axios";
 // Importing CSS Files
 import "../App.css";
 import EditModal from "./Component/edit-modal";
 import SearchBar from "./Component/search-bar";
 import UserInfo from "./Component/user-info";
-import { capitalizeFirstLetter } from "./Utils/utils";
+import useAxios from "./Services/use-axios";
+import useDebounce from "./Services/use-debounce";
+import { capitalizeFirstLetter, filterUser } from "./Utils/utils";
 
 export default function Admin() {
   /* States */
   // all user data
-  const [usersData, setUsersData] = useState([]);
+  const [usersData, setUsersData] = useState();
   // filter data copy
   const [filterUserData, setFilterUserData] = useState([]);
 
   const [columns, setColumns] = useState([]);
   // all pages
   const [totalPages, setTotalPages] = useState(0);
-  // curent pages from _ to _
+  // current pages from _ to _
   const [pageInfo, setPageInfo] = useState({ start: 0, end: 10 });
   // track the selected user
   const [selectedItem, setSelectedItem] = useState([]);
   // selectAll is clicked
   const [selectAll, setSelectAll] = useState(false);
+  // selected page
+  const [selectedPage, setSelectedPage] = useState(1);
+  // list of selected pages
+  const [selectedPages, setSelectedPages] = useState([]);
+  // search term
+  const [searchString, setSearchString] = useState();
 
   // edit user modal popup
   const [open, setOpen] = useState(false);
@@ -47,38 +56,53 @@ export default function Admin() {
   const [userToEdit, setUserToEdit] = useState({});
 
   // API Call
-  const getUsersData = useCallback(() => {
-    axios
-      .get(
-        "https://geektrust.s3-ap-southeast-1.amazonaws.com/adminui-problem/members.json"
-      )
-      .then((res) => {
-        if (res.data) {
-          setUsersData(res.data);
-          setFilterUserData(res.data);
-          setColumns(Object.keys(res.data[0]));
-        }
-      });
-  }, []);
+  const { response, loading, error } = useAxios({
+    method: "get",
+    url: "/adminui-problem/members.json",
+  });
 
   /*  Hooks */
   // api call on load of the component
   useEffect(() => {
-    getUsersData();
-  }, [getUsersData]);
+    if (response) {
+      setUsersData(response);
+      setFilterUserData(response);
+      setColumns(Object.keys(response[0]));
+    }
+  }, [response]);
 
-  // track curent total page count based on remaining user after delete
+  // track current total page count based on remaining user after delete
   useEffect(() => {
     if (filterUserData) {
       setTotalPages(Math.ceil(filterUserData.length / 10));
     }
   }, [filterUserData]);
 
+  const debounceSearchTerm = useDebounce(searchString, 500);
+  const filterByDebounceTerm = useCallback(() => {
+    setFilterUserData(filterUser(usersData, debounceSearchTerm));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debounceSearchTerm]);
+
+  // filter data with debounceTerm
+  useEffect(() => {
+    filterByDebounceTerm();
+  }, [filterByDebounceTerm]);
+
   /*  Methods */
   // tracking page change based on the current selected page
   const onPageChange = (event, value) => {
-    setPageInfo({ start: (value - 1) * 10, end: value * 10 });
+    setSelectedPage(value);
+    if (value > filterUserData.length / 10) {
+      setPageInfo({
+        start: (value - 1) * 10,
+        end: filterUserData.length,
+      });
+    } else {
+      setPageInfo({ start: (value - 1) * 10, end: value * 10 });
+    }
   };
+
   // deleting a single user
   const deleteItem = (id) => {
     let newArray = usersData.filter((user) => {
@@ -102,7 +126,7 @@ export default function Admin() {
     setOpen(false);
   };
 
-  // for modal open and setting prefill data
+  // for modal open and setting pre fill data
   const openAndEdit = (user) => {
     setOpen(true);
     dataToBeEdited(user);
@@ -113,17 +137,10 @@ export default function Admin() {
     setUserToEdit(user);
   };
 
-  // Searching data besed on name / email / role
+  // Searching data based on name / email / role
   const handleSearch = (e) => {
     let string = e.target.value.toLowerCase();
-    setFilterUserData(
-      usersData.filter(
-        (user) =>
-          user.name.toLowerCase().includes(string) ||
-          user.role.toLowerCase().includes(string) ||
-          user.email.toLowerCase().includes(string)
-      )
-    );
+    setSearchString(string);
   };
 
   // for selecting
@@ -140,29 +157,40 @@ export default function Admin() {
   };
 
   // for deselecting
+  // TODO on deleting remaining list disappear
   const deleteSelected = () => {
-    let newArray = usersData.filter((user) => {
+    let newArray = filterUserData.filter((user) => {
       return !selectedItem.includes(parseInt(user.id));
     });
     setFilterUserData(newArray);
     setSelectAll(false);
+    setSelectedItem([]);
+    console.log({ selectedPage });
+    if (selectedPage >= filterUserData.length / 10) {
+      console.log("jere");
+      setSelectedPage(selectedPage - 1);
+      setPageInfo({ start: (selectedPage - 2) * 10, end: selectedPage * 10 });
+    }
   };
 
   // for selecting all on current page
   // TODO Change logic for select all its working for only first page
   const selectAllCurrentPage = (checked) => {
     if (checked) {
-      let start = 0;
-      let end = 10;
+      let start = pageInfo.start;
+      let end = pageInfo.end;
       for (let i = start; i < end; i++) {
         setSelectedItem((prev) => [...prev, parseInt(filterUserData[i].id)]);
       }
       setSelectAll(true);
+      setSelectedPages([...selectedPages, pageInfo.end / 10]);
     } else {
       setSelectAll(false);
       setSelectedItem([]);
     }
   };
+
+  // TODO No data message on search, Loading on api, api fail message, try creating hook if possible for api and implement debounce with hook
 
   return (
     <>
@@ -171,49 +199,66 @@ export default function Admin() {
         <SearchBar handleSearch={handleSearch} />
         <Box>
           {/* user table */}
-          <TableContainer component={Paper}>
-            <Table
-              /* sx={{ minWidth: 650 }} */ aria-label="simple table"
-              className="UserTable"
+          {loading ? (
+            <Backdrop
+              sx={{ color: "#000", zIndex: (theme) => theme.zIndex.drawer + 1 }}
+              open
             >
-              <TableHead>
-                <TableRow>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectAll}
-                      onChange={(e) => {
-                        selectAllCurrentPage(e.target.checked);
-                      }}
-                      inputProps={{ "aria-label": "Checkbox demo" }}
-                    />
-                  </TableCell>
-                  {columns &&
-                    columns.slice(1, columns.length).map((column, c) => {
-                      return (
-                        <TableCell align="left" key={c}>
-                          {capitalizeFirstLetter(column)}
-                        </TableCell>
-                      );
-                    })}
-                  <TableCell align="left">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filterUserData
-                  ?.slice(pageInfo.start, pageInfo.end)
-                  .map((user) => (
-                    <UserInfo
-                      key={user.name}
-                      user={user}
-                      selectedItem={selectedItem}
-                      deleteItem={deleteItem}
-                      openAndEdit={openAndEdit}
-                      handleSelectedItem={handleSelectedItem}
-                    />
-                  ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              <CircularProgress color="inherit" />
+            </Backdrop>
+          ) : (
+            <TableContainer component={Paper}>
+              {filterUserData?.length > 0 ? (
+                <Table
+                  /* sx={{ minWidth: 650 }} */ aria-label="simple table"
+                  className="UserTable"
+                >
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <Checkbox
+                          checked={
+                            selectAll &&
+                            selectedPages.includes(pageInfo.end / 10)
+                          }
+                          onChange={(e) => {
+                            selectAllCurrentPage(e.target.checked);
+                          }}
+                          inputProps={{ "aria-label": "Checkbox demo" }}
+                        />
+                      </TableCell>
+                      {columns &&
+                        columns.slice(1, columns.length).map((column, c) => {
+                          return (
+                            <TableCell align="left" key={c}>
+                              {capitalizeFirstLetter(column)}
+                            </TableCell>
+                          );
+                        })}
+                      <TableCell align="left">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filterUserData
+                      ?.slice(pageInfo.start, pageInfo.end)
+                      .map((user) => (
+                        <UserInfo
+                          key={user.name}
+                          user={user}
+                          selectedItem={selectedItem}
+                          deleteItem={deleteItem}
+                          openAndEdit={openAndEdit}
+                          handleSelectedItem={handleSelectedItem}
+                        />
+                      ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <Alert severity="info">No match found!</Alert>
+              )}
+            </TableContainer>
+          )}
+
           <Box className="PagingBar">
             <Button
               className="DeleteAllButton"
@@ -227,6 +272,7 @@ export default function Admin() {
             <Stack spacing={2}>
               <Pagination
                 count={totalPages}
+                page={selectedPage}
                 variant="outlined"
                 shape="rounded"
                 onChange={onPageChange}
@@ -234,6 +280,8 @@ export default function Admin() {
             </Stack>
           </Box>
         </Box>
+
+        {error && <Alert severity="error">Failed to fetch data</Alert>}
       </Box>
       {/* edit user modal */}
       <EditModal
