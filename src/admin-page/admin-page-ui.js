@@ -25,7 +25,7 @@ import SearchBar from "./Component/search-bar";
 import UserInfo from "./Component/user-info";
 import useAxios from "./Services/use-axios";
 import useDebounce from "./Services/use-debounce";
-import { capitalizeFirstLetter, filterUser } from "./Utils/utils";
+import { capitalizeFirstLetter, filterUser, pageDetail } from "./Utils/utils";
 
 export default function Admin() {
   /* States */
@@ -33,7 +33,6 @@ export default function Admin() {
   const [usersData, setUsersData] = useState();
   // filter data copy
   const [filterUserData, setFilterUserData] = useState([]);
-
   const [columns, setColumns] = useState([]);
   // all pages
   const [totalPages, setTotalPages] = useState(0);
@@ -78,6 +77,7 @@ export default function Admin() {
     }
   }, [filterUserData]);
 
+  // Search Users
   const debounceSearchTerm = useDebounce(searchString, 500);
   const filterByDebounceTerm = useCallback(() => {
     setFilterUserData(filterUser(usersData, debounceSearchTerm));
@@ -89,26 +89,27 @@ export default function Admin() {
     filterByDebounceTerm();
   }, [filterByDebounceTerm]);
 
+  // change the pageInfo
+  const changePage = useCallback(() => {
+    setPageInfo(pageDetail(selectedPage, filterUserData));
+    // setSelectedPage(Math.ceil(pageInfo.end / 10));
+  }, [filterUserData, selectedPage]);
+
+  useEffect(() => {
+    if (filterUserData) {
+      changePage();
+    }
+  }, [totalPages, changePage, filterUserData]);
+
   /*  Methods */
   // tracking page change based on the current selected page
   const onPageChange = (event, value) => {
     setSelectedPage(value);
-    if (value > filterUserData.length / 10) {
-      setPageInfo({
-        start: (value - 1) * 10,
-        end: filterUserData.length,
-      });
-    } else {
-      setPageInfo({ start: (value - 1) * 10, end: value * 10 });
-    }
   };
 
   // deleting a single user
   const deleteItem = (id) => {
-    let newArray = usersData.filter((user) => {
-      return user.id !== id;
-    });
-    setFilterUserData(newArray);
+    setFilterUserData((prev) => prev.filter((user) => user.id !== id));
   };
 
   // editing user
@@ -156,41 +157,34 @@ export default function Admin() {
     }
   };
 
-  // for deselecting
-  // TODO on deleting remaining list disappear
-  const deleteSelected = () => {
-    let newArray = filterUserData.filter((user) => {
-      return !selectedItem.includes(parseInt(user.id));
-    });
-    setFilterUserData(newArray);
+  //resetting selecting
+  const resetSelect = () => {
     setSelectAll(false);
     setSelectedItem([]);
-    console.log({ selectedPage });
-    if (selectedPage >= filterUserData.length / 10) {
-      console.log("jere");
-      setSelectedPage(selectedPage - 1);
-      setPageInfo({ start: (selectedPage - 2) * 10, end: selectedPage * 10 });
-    }
   };
 
+  // for deselecting
+  const deleteSelected = () => {
+    setFilterUserData((prev) =>
+      prev.filter((user) => !selectedItem.includes(parseInt(user.id)))
+    );
+    resetSelect();
+  };
+
+  //TODO issue with select unselect on different pages
+
   // for selecting all on current page
-  // TODO Change logic for select all its working for only first page
   const selectAllCurrentPage = (checked) => {
     if (checked) {
-      let start = pageInfo.start;
-      let end = pageInfo.end;
-      for (let i = start; i < end; i++) {
+      for (let i = pageInfo.start; i < pageInfo.end; i++) {
         setSelectedItem((prev) => [...prev, parseInt(filterUserData[i].id)]);
       }
       setSelectAll(true);
-      setSelectedPages([...selectedPages, pageInfo.end / 10]);
+      setSelectedPages([...selectedPages, selectedPage]);
     } else {
-      setSelectAll(false);
-      setSelectedItem([]);
+      resetSelect();
     }
   };
-
-  // TODO No data message on search, Loading on api, api fail message, try creating hook if possible for api and implement debounce with hook
 
   return (
     <>
@@ -209,10 +203,7 @@ export default function Admin() {
           ) : (
             <TableContainer component={Paper}>
               {filterUserData?.length > 0 ? (
-                <Table
-                  /* sx={{ minWidth: 650 }} */ aria-label="simple table"
-                  className="UserTable"
-                >
+                <Table aria-label="simple table" className="UserTable">
                   <TableHead>
                     <TableRow>
                       <TableCell>
@@ -276,11 +267,11 @@ export default function Admin() {
                 variant="outlined"
                 shape="rounded"
                 onChange={onPageChange}
+                color="primary"
               />
             </Stack>
           </Box>
         </Box>
-
         {error && <Alert severity="error">Failed to fetch data</Alert>}
       </Box>
       {/* edit user modal */}
@@ -295,4 +286,7 @@ export default function Admin() {
 }
 
 /* 
-1. Nice way of writing single line comments before the start Areas of Improvement: All the logic is in one big method/file which makes the code hard to read and maintain. The UI code could have been modular. Lower level components could have been identified and implemented. This helps in having an extensible, readable and maintainable solution. 1. No test cases are written for the project. 2. Error handling is not implemented. For instance if the api fails to respond and gives an error status code then no error message is shown to the user. Also the api responds but with empty results then also no message is displayed. For example 'No data found' or 'Can't fetch the data at the moment'. 3. Edited data doesn't persist while using the search feature to search user by name, email or role. 4. Search functionality has edge case issues. Search can be performed well only on the first page. if on some other page other than the first page then the search logic fails to get the result. */
+1. Nice way of writing single line comments before the start Areas of Improvement: All the logic is in one big method/file which makes the code hard to read and maintain. The UI code could have been modular. Lower level components could have been identified and implemented. This helps in having an extensible, readable and maintainable solution. 
+1. No test cases are written for the project. 
+2. Error handling is not implemented. For instance if the api fails to respond and gives an error status code then no error message is shown to the user. Also the api responds but with empty results then also no message is displayed. For example 'No data found' or 'Can't fetch the data at the moment'. 
+3. Edited data doesn't persist while using the search feature to search user by name, email or role. 4. Search functionality has edge case issues. Search can be performed well only on the first page. if on some other page other than the first page then the search logic fails to get the result. */
