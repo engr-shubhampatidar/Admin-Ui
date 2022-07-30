@@ -40,8 +40,6 @@ export default function Admin() {
   const [pageInfo, setPageInfo] = useState({ start: 0, end: 10 });
   // track the selected user
   const [selectedItem, setSelectedItem] = useState([]);
-  // selectAll is clicked
-  const [selectAll, setSelectAll] = useState(false);
   // selected page
   const [selectedPage, setSelectedPage] = useState(1);
   // list of selected pages
@@ -81,6 +79,7 @@ export default function Admin() {
   const debounceSearchTerm = useDebounce(searchString, 500);
   const filterByDebounceTerm = useCallback(() => {
     setFilterUserData(filterUser(usersData, debounceSearchTerm));
+    setSelectedPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounceSearchTerm]);
 
@@ -150,6 +149,7 @@ export default function Admin() {
       setSelectedItem((prev) => [...prev, parseInt(id)]);
     } else {
       let index = selectedItem.indexOf(parseInt(id));
+      setSelectedPages((prev) => prev.filter((page) => page !== selectedPage));
       setSelectedItem([
         ...selectedItem.slice(0, index),
         ...selectedItem.slice(index + 1),
@@ -159,8 +159,21 @@ export default function Admin() {
 
   //resetting selecting
   const resetSelect = () => {
-    setSelectAll(false);
     setSelectedItem([]);
+    setSelectedPages([]);
+  };
+
+  // tracking the page curser
+  const trackSelectedPage = () => {
+    if (
+      selectedPages.includes(selectedPage) &&
+      selectedPage === totalPages &&
+      totalPages > 1
+    ) {
+      setSelectedPage(selectedPage - 1);
+    } else {
+      setSelectedItem(1);
+    }
   };
 
   // for deselecting
@@ -168,10 +181,9 @@ export default function Admin() {
     setFilterUserData((prev) =>
       prev.filter((user) => !selectedItem.includes(parseInt(user.id)))
     );
+    trackSelectedPage();
     resetSelect();
   };
-
-  //TODO issue with select unselect on different pages
 
   // for selecting all on current page
   const selectAllCurrentPage = (checked) => {
@@ -179,13 +191,19 @@ export default function Admin() {
       for (let i = pageInfo.start; i < pageInfo.end; i++) {
         setSelectedItem((prev) => [...prev, parseInt(filterUserData[i].id)]);
       }
-      setSelectAll(true);
       setSelectedPages([...selectedPages, selectedPage]);
     } else {
-      resetSelect();
+      setSelectedPages((prev) => prev.filter((page) => page !== selectedPage));
+      let newList = [...selectedItem];
+      for (let i = pageInfo.start + 1; i <= pageInfo.end; i++) {
+        let index = newList.indexOf(parseInt(i));
+        newList.splice(index, 1);
+      }
+      setSelectedItem(newList);
     }
   };
 
+  // TODO destructure the table component
   return (
     <>
       <Box className="Container">
@@ -208,10 +226,7 @@ export default function Admin() {
                     <TableRow>
                       <TableCell>
                         <Checkbox
-                          checked={
-                            selectAll &&
-                            selectedPages.includes(pageInfo.end / 10)
-                          }
+                          checked={selectedPages.includes(pageInfo.end / 10)}
                           onChange={(e) => {
                             selectAllCurrentPage(e.target.checked);
                           }}
@@ -284,9 +299,3 @@ export default function Admin() {
     </>
   );
 }
-
-/* 
-1. Nice way of writing single line comments before the start Areas of Improvement: All the logic is in one big method/file which makes the code hard to read and maintain. The UI code could have been modular. Lower level components could have been identified and implemented. This helps in having an extensible, readable and maintainable solution. 
-1. No test cases are written for the project. 
-2. Error handling is not implemented. For instance if the api fails to respond and gives an error status code then no error message is shown to the user. Also the api responds but with empty results then also no message is displayed. For example 'No data found' or 'Can't fetch the data at the moment'. 
-3. Edited data doesn't persist while using the search feature to search user by name, email or role. 4. Search functionality has edge case issues. Search can be performed well only on the first page. if on some other page other than the first page then the search logic fails to get the result. */
