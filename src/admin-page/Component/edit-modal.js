@@ -27,13 +27,14 @@ function EditModal({ open, user, handleClose, editUser }) {
   };
 
   // data of user to be edited
-  const [userToEdit, setUserToEdit] = useState(user);
+  const [userToEdit, setUserToEdit] = useState();
 
   useEffect(() => {
+    setUserToEdit(user);
     return () => {
       console.log("here");
     };
-  }, []);
+  }, [user]);
 
   // changing name
   const changeName = (name) => {
@@ -81,7 +82,7 @@ function EditModal({ open, user, handleClose, editUser }) {
                 fullWidth
                 id="name"
                 label="Name"
-                value={userToEdit.name}
+                value={userToEdit?.name}
                 onChange={(e) => {
                   changeName(e.target.value);
                 }}
@@ -92,7 +93,7 @@ function EditModal({ open, user, handleClose, editUser }) {
                 fullWidth
                 id="email"
                 label="Email"
-                value={userToEdit.email}
+                value={userToEdit?.email}
                 onChange={(e) => {
                   changeEmail(e.target.value);
                 }}
@@ -103,7 +104,7 @@ function EditModal({ open, user, handleClose, editUser }) {
                 fullWidth
                 id="role"
                 label="Role"
-                value={userToEdit.role}
+                value={userToEdit?.role}
                 onChange={(e) => {
                   changeRole(e.target.value);
                 }}
